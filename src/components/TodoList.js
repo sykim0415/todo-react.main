@@ -86,15 +86,20 @@ const TodoList = () => {
     );
   };
 
-  const deleteTodo = (id) => {
+  const deleteTodo = async (id) => {
+    const todo = todos.find(todo => todo.id === id);
+    if (!todo) return; // 해당 ID의 할 일이 없는 경우 종료
+    // 현재 사용자의 이름과 할 일의 사용자 이름이 일치하는지 확인
+    if (todo.userName !== data?.user?.name) {
+      console.log("현재 사용자의 할 일이 아닙니다.");
+      return;
+    }
+    // 해당 할 일 삭제
     const todoDoc = doc(todoCollection, id);
-    deleteDoc(todoDoc);
-    setTodos(
-      todos.filter((todo) => {
-        return todo.id !== id;
-      })
-    );
-  };
+    await deleteDoc(todoDoc);
+    // 삭제된 할 일을 제외한 나머지 할 일들만 유지
+    setTodos(prevTodos => prevTodos.filter(todo => todo.id !== id));
+  };  
 
   return (
     <div className={styles.container}>
