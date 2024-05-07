@@ -1,6 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+
+import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
+
 import TodoItem from "@/components/TodoItem";
 import styles from "@/styles/TodoList.module.css";
 
@@ -15,6 +19,7 @@ import {
   updateDoc,
   deleteDoc,
   orderBy,
+  where
 } from "firebase/firestore";
 
 // DB의 todos 컬렉션 참조를 만듭니다. 컬렉션 사용시 잘못된 컬렉션 이름 사용을 방지합니다.
@@ -25,12 +30,27 @@ const TodoList = () => {
   const [todos, setTodos] = useState([]);
   const [input, setInput] = useState("");
 
+  const router = useRouter();
+  const { data } = useSession({
+    required: true,
+    onUnauthenticated() {
+      router.replace("/login");
+    },
+  });
+
   useEffect(() => {
+    console.log("data", data);
     getTodos();
-  }, []);
+  }, [data]);
 
   const getTodos = async () => {
-    const q = query(todoCollection, orderBy('date', 'asc')); // 날짜 순으로 정렬
+    if (!data?.user?.name) return;
+    const q = query(
+      todoCollection,
+      where("userName", "==", data?.user?.name),
+      orderBy("date", 'asc')
+    ); // 날짜 순으로 정렬
+
     const results = await getDocs(q);
     const newTodos = [];
     results.docs.forEach((doc) => {
@@ -41,14 +61,16 @@ const TodoList = () => {
 
   const addTodo = async () => {
     if (input.trim() === "") return;
+    const userName = data?.user?.name || "Unknown"; // 'Unknown'으로 기본값 설정
     const docRef = await addDoc(todoCollection, {
+      userName: userName,
       text: input,
       completed: false,
       date: new Date().toISOString().slice(0, 10) // 현재 날짜 설정
     });
     setTodos([...todos, { id: docRef.id, text: input, completed: false, date: new Date().toISOString().slice(0, 10) }]);
     setInput("");
-  };
+  };   
 
   const toggleTodo = (id) => {
     setTodos(
@@ -77,7 +99,7 @@ const TodoList = () => {
   return (
     <div className={styles.container}>
       <h1 className="text-xl mb-4 font-bold underline underline-offset-4 decoration-wavy">
-        Todo List
+        {data?.user?.name}'s Todo List
       </h1>
       <input
         type="text"
